@@ -14,11 +14,12 @@ if [ ! -f "$NODE_LICENSE" ]; then echo 'Set NODE_LICENSE_FILE to the complete li
 # Recreate resources so stale test modules or sample PDFs cannot enter a release.
 rm -rf "$APP/Contents/Resources"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/Backend" "$APP/Contents/Resources/Samples" "$ROOT/.build/module-cache"
-swiftc -parse-as-library -target arm64-apple-macosx14.0 -module-cache-path "$ROOT/.build/module-cache" -o "$APP/Contents/MacOS/LeafReader" "$ROOT"/Sources/*.swift -framework SwiftUI -framework AppKit -framework PDFKit -framework CryptoKit -framework Security -framework Vision -framework CoreText
+swiftc -parse-as-library -target arm64-apple-macosx14.0 -module-cache-path "$ROOT/.build/module-cache" -o "$APP/Contents/MacOS/LeafReader" "$ROOT"/Sources/*.swift -framework SwiftUI -framework AppKit -framework PDFKit -framework CryptoKit -framework Security -framework Vision -framework CoreText -framework WebKit
 for SOURCE in "$ROOT"/Backend/*.mjs; do
   case "$SOURCE" in *.test.mjs) continue ;; esac
   cp "$SOURCE" "$APP/Contents/Resources/Backend/"
 done
+cp -R "$ROOT/assets/math" "$APP/Contents/Resources/MathRenderer"
 mkdir -p "$APP/Contents/Resources/ThirdParty"
 cp "$NODE_LICENSE" "$APP/Contents/Resources/ThirdParty/Node-LICENSE.txt"
 # The optional Lucas sample is downloaded only at the reader's request.
@@ -37,8 +38,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleExecutable</key><string>LeafReader</string>
 <key>CFBundleIconFile</key><string>MarginMonogram.icns</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.4.0</string>
-<key>CFBundleVersion</key><string>12</string>
+<key>CFBundleShortVersionString</key><string>0.5.0</string>
+<key>CFBundleVersion</key><string>13</string>
 <key>CFBundleDevelopmentRegion</key><string>en</string>
 <key>CFBundleLocalizations</key><array>
 <string>en</string><string>zh-Hans</string><string>zh-Hant</string>

@@ -90,6 +90,106 @@ test('context and image bounds reject invalid data before persistence or model u
   assert.throws(() => validateChat(request({ imageDataUrl: 'data:image/png;base64,SGVsbG8=' })), /内容与格式/);
 });
 
+function reference(scope, pageNumbers = [], totalPages = 5) {
+  return { scope, pages: pageNumbers.map(page => ({ page, text: `Complete reference text for page ${page}.` })), totalPages };
+}
+function suppliedContext(message) {
+  return JSON.parse(message.content[0].text.match(/<document_context>\n([\s\S]+)\n<\/document_context>/)[1]);
+}
+
+test('selection-only questions send the anchor without leaking legacy page text', async t => {
+  const inputs = [];
+  const { service } = await setup(t, async options => { inputs.push(options.input); return result(); });
+  const a = request({ reference: reference('selection') });
+  await settle(service, await service.start(a));
+  assert.deepEqual(suppliedContext(inputs[0][0]), {
+    filename: a.context.filename, quote: a.context.quote, page: 3, reference: reference('selection')
+  });
+  assert.ok(!JSON.stringify(inputs[0]).includes(a.context.pageText));
+  assert.equal(inputs[0][0].content[0].text.endsWith(a.text), true);
+  const transcript = await service.thread(a.threadId);
+  assert.deepEqual(transcript.messages[0].reference, { scope: 'selection', pages: [], totalPages: 5 });
+  assert.equal(transcript.messages[1].reference, undefined);
+});
+
+test('reference ranges can change on every turn across restart while preserving anchors and full conversation history', async t => {
+  const inputs = [];
+  const execute = async options => { inputs.push(structuredClone(options.input)); return result(); };
+  const { directory, service } = await setup(t, execute);
+  const a = request({ reference: reference('page', [3]) });
+  await settle(service, await service.start(a));
+  const restored = new ConversationService({ dataDir: directory, execute }); await restored.init();
+  const b = { ...a, requestId: randomUUID(), text: 'Compare with the surrounding pages.',
+    context: { ...a.context, pageText: 'New OCR page text which should not be implicitly included.' },
+    reference: reference('nearby', [2, 3, 4]) };
+  await settle(restored, await restored.start(b));
+  const c = { ...b, requestId: randomUUID(), text: 'Now only explain the selection.', reference: reference('selection') };
+  await settle(restored, await restored.start(c));
+  assert.deepEqual(inputs[1].slice(0, 3), [...inputs[0], ...result().output]);
+  assert.deepEqual(inputs[2].slice(0, 6), [...inputs[1], ...result().output]);
+  assert.deepEqual(suppliedContext(inputs[1].at(-1)).reference, b.reference);
+  assert.deepEqual(suppliedContext(inputs[2].at(-1)).reference, c.reference);
+  assert.match(inputs[2].at(-1).content[0].text, /本轮参考范围/);
+  assert.ok(!JSON.stringify(inputs[2]).includes(b.context.pageText));
+  assert.ok(!inputs[2].at(-1).content[0].text.includes('Complete reference text'));
+  const transcript = await restored.thread(a.threadId);
+  assert.deepEqual(transcript.messages.filter(m => m.role === 'user').map(m => m.reference), [
+    { scope: 'page', pages: [3], totalPages: 5 },
+    { scope: 'nearby', pages: [2, 3, 4], totalPages: 5 },
+    { scope: 'selection', pages: [], totalPages: 5 }
+  ]);
+  assert.ok(!JSON.stringify(transcript).includes('Complete reference text'));
+  const disk = JSON.parse(await readFile(restored.filename(a.threadId), 'utf8'));
+  assert.deepEqual(disk.context, a.context);
+  for (const changed of [{ filename: 'different.pdf' }, { quote: 'Different quote' }, { page: 4 }]) {
+    await assert.rejects(restored.start({ ...c, requestId: randomUUID(), context: { ...c.context, ...changed } }), /划线位置或原文已改变/);
+  }
+});
+
+test('legacy saved threads accept an explicit reference range and keep their original context', async t => {
+  const inputs = [];
+  const execute = async options => { inputs.push(options.input); return result(); };
+  const { directory, service } = await setup(t, execute);
+  const a = request(); await settle(service, await service.start(a));
+  const restored = new ConversationService({ dataDir: directory, execute }); await restored.init();
+  await settle(restored, await restored.start({ ...a, requestId: randomUUID(), reference: reference('custom', [1, 5]) }));
+  assert.deepEqual(suppliedContext(inputs[1].at(-1)).reference, reference('custom', [1, 5]));
+  assert.equal(suppliedContext(inputs[1].at(-1)).pageText, undefined);
+  assert.equal(suppliedContext(inputs[1][0]).pageText, a.context.pageText);
+  assert.equal((await restored.thread(a.threadId)).messages[0].reference, undefined);
+});
+
+test('request identity includes reference range and page contents', async t => {
+  const { service } = await setup(t, async () => result());
+  const a = request({ reference: reference('page', [3]) });
+  const id = await service.start(a); await settle(service, id);
+  assert.equal(await service.start(a), id);
+  await assert.rejects(service.start({ ...a, reference: reference('selection') }), /不同内容/);
+  await assert.rejects(service.start({ ...a, reference: { ...a.reference, pages: [{ page: 3, text: 'Changed page text' }] } }), /不同内容/);
+});
+
+test('reference schemas enforce complete, ordered ranges and explicit text limits', () => {
+  const valid = [reference('selection'), reference('page', [3]), reference('nearby', [2, 3, 4]),
+    reference('custom', [1, 5]), reference('document', [1, 2, 3, 4, 5])];
+  for (const item of valid) assert.deepEqual(validateChat(request({ reference: item })).reference, item);
+  const edge = request({ context: { filename: 'one.pdf', quote: 'one', page: 1, pageText: '' }, reference: reference('nearby', [1], 1) });
+  assert.deepEqual(validateChat(edge).reference, edge.reference);
+  const invalid = [null, [], {}, reference('unknown'), reference('selection', [3]), reference('page', []),
+    reference('page', [2]), reference('page', [2, 3]), reference('nearby', [2, 3]), reference('custom', []),
+    reference('custom', [3, 3]), reference('custom', [4, 2]), reference('custom', [0]), reference('custom', [6]),
+    reference('document', [1, 2, 3, 4]), reference('selection', [], 2), reference('selection', [], 1.5),
+    reference('selection', [], 100001), { ...reference('custom', [3]), pages: [{ page: 3, text: '   ' }] },
+    { ...reference('custom', [3]), pages: [{ page: 3.5, text: 'text' }] },
+    { ...reference('custom', [3]), pages: [{ page: 3, text: 'x'.repeat(100001) }] },
+    { ...reference('custom', [1, 2]), pages: [{ page: 1, text: 'x'.repeat(50001) }, { page: 2, text: 'y'.repeat(50000) }] },
+    reference('document', Array.from({ length: 201 }, (_, i) => i + 1), 201)];
+  for (const item of invalid) assert.throws(() => validateChat(request({ reference: item })), { status: 400 });
+  const exactLimit = { scope: 'custom', pages: [{ page: 3, text: 'x'.repeat(100000) }], totalPages: 5 };
+  assert.equal(validateChat(request({ reference: exactLimit })).reference.pages[0].text.length, 100000);
+  const maximumPages = reference('document', Array.from({ length: 200 }, (_, i) => i + 1), 200);
+  assert.equal(validateChat(request({ reference: maximumPages })).reference.pages.length, 200);
+});
+
 test('concurrent model work is bounded and cancellation releases capacity', async t => {
   const { service } = await setup(t, options => new Promise((resolve, reject) => {
     options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });

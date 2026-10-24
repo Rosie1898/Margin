@@ -136,7 +136,8 @@ struct CanvasTests {
         var currentPage: Int?
         var receivedScales: [CGFloat] = []
         var actionEvents: [(SelectionSnapshot?, SelectionActionAnchor?)] = []
-        var parent = PDFCanvas(document: doc, documentID: "fixture", annotations: [note], selectedAnnotationID: note.id, initialPage: 0, navigationToken: 1, navigationRect: verifiesNavigation ? note.rects[0] : nil, onScale: { receivedScales.append($0) }, onSelection: { received = $0 }, onPage: { currentPage = $0 }, onAnnotationClick: { _ in })
+        let search = PDFSearchState()
+        var parent = PDFCanvas(document: doc, documentID: "fixture", annotations: [note], selectedAnnotationID: note.id, initialPage: 0, navigationToken: 1, navigationRect: verifiesNavigation ? note.rects[0] : nil, searchState: search, onScale: { receivedScales.append($0) }, onSelection: { received = $0 }, onPage: { currentPage = $0 }, onAnnotationClick: { _ in })
         parent.onSelectionActions = { actionEvents.append(($0, $1)) }
         let view = ReaderPDFView(frame: CGRect(x: 0, y: 0, width: 700, height: verifiesNavigation ? 420 : 850))
         view.displayMode = .singlePageContinuous
@@ -274,6 +275,70 @@ struct CanvasTests {
         coordinator.update(parent)
         precondition(!view.autoScales && abs(view.scaleFactor - 2) < 0.001, "Pinch after Fit must again allow a stable zoom over 100%")
         precondition(view.minScaleFactor == 0.2 && view.maxScaleFactor == 6)
+        // Every clip notification must keep the horizontal origin. Checking only
+        // the final value would miss an intermediate PDFKit go(to:) sideways jump.
+        view.layoutSubtreeIfNeeded()
+        view.layoutDocumentView()
+        let navigationClip = nativeScroll.contentView
+        var panned = navigationClip.bounds
+        panned.origin.x = 170
+        navigationClip.scroll(to: navigationClip.constrainBoundsRect(panned).origin)
+        nativeScroll.reflectScrolledClipView(navigationClip)
+        let retainedX = navigationClip.bounds.minX
+        precondition(retainedX > 10, "The navigation regression must start horizontally panned beyond fit")
+        var horizontalPositions: [CGFloat] = []
+        let navigationObserver = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: navigationClip, queue: nil) { _ in
+            horizontalPositions.append(navigationClip.bounds.minX)
+        }
+        for target in [note.rects[2], note.rects[0], note.rects[2], note.rects[2]] {
+            parent.navigationRect = target
+            parent.navigationToken += 1
+            coordinator.update(parent)
+            RunLoop.main.run(until: Date().addingTimeInterval(0.09))
+            let targetPage = doc.page(at: target.page)!
+            let documentView = view.documentView!
+            let located = documentView.convert(view.convert(target.cgRect, from: targetPage), from: view)
+            let visible = navigationClip.documentVisibleRect
+            precondition(visible.maxY >= located.minY && visible.minY <= located.maxY,
+                         "A zoomed note jump must reveal its vertical location")
+            precondition(abs(navigationClip.bounds.minX - retainedX) < 0.5 && abs(view.scaleFactor - 2) < 0.001 && !view.autoScales,
+                         "Repeated note jumps must preserve the user's horizontal offset and manual zoom")
+        }
+        NotificationCenter.default.removeObserver(navigationObserver)
+        precondition(!horizontalPositions.isEmpty && horizontalPositions.allSatisfy { abs($0 - retainedX) < 0.5 },
+                     "No intermediate scroll notification may shift the page sideways: \(horizontalPositions)")
+        // Find overlays stay separate from existing annotations and mouse selection.
+        let selectionBeforeSearch = view.currentSelection?.string
+        let annotationCountBeforeSearch = p0.annotations.count + p1.annotations.count
+        func finishSearch() {
+            let deadline = Date().addingTimeInterval(3)
+            while search.isSearching && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+            precondition(!search.isSearching, "A small PDF search should finish promptly")
+        }
+        search.query = "G(T)"
+        finishSearch()
+        let expectedSearchCount = doc.findString("G(T)", withOptions: .caseInsensitive).count
+        precondition(expectedSearchCount > 1 && search.matchCount == expectedSearchCount && search.currentMatch == 1,
+                     "Search must find all case-insensitive matches in document order")
+        precondition(view.highlightedSelections?.count == expectedSearchCount,
+                     "Find results must have transient highlights")
+        precondition(view.currentSelection?.string == selectionBeforeSearch && p0.annotations.count + p1.annotations.count == annotationCountBeforeSearch,
+                     "Finding text must preserve the current mouse selection and saved annotations")
+        search.previous()
+        precondition(search.currentMatch == expectedSearchCount, "Previous from the first result must wrap to the last")
+        search.next()
+        precondition(search.currentMatch == 1, "Next from the last result must wrap to the first")
+        search.query = "no-match-that-must-not-leak"
+        search.query = "G(T)"
+        finishSearch()
+        precondition(search.matchCount == expectedSearchCount, "A replacement query must discard canceled search results")
+        search.query = "no-match-that-must-not-leak"
+        finishSearch()
+        precondition(search.matchCount == 0 && search.currentMatch == 0 && view.highlightedSelections?.isEmpty != false,
+                     "No-match searches must clear old overlays and result counters")
+        search.clear()
+        precondition(search.query.isEmpty && search.matchCount == 0 && view.currentSelection?.string == selectionBeforeSearch,
+                     "Closing Find must remove its results without clearing the user's selection")
         parent.annotations = []
         coordinator.update(parent)
         precondition(p0.annotations.count == 1 && p0.annotations[0] === original)
@@ -283,6 +348,8 @@ struct CanvasTests {
         view.go(to: p0)
         let keptSelection = p0.selection(for: NSRange(location: 0, length: 10))!
         view.setCurrentSelection(keptSelection, animate: false)
+        search.query = "G(T)"
+        finishSearch()
         let originBeforeOCR = view.documentView!.enclosingScrollView!.contentView.bounds.origin
         NotificationCenter.default.post(name: .leafPDFWillReplacePage, object: "fixture")
         let replacementPage = PDFDocument(url: source)!.page(at: 1)!
@@ -298,6 +365,13 @@ struct CanvasTests {
                      "Installing an OCR page must preserve the exact scroll position")
         precondition(p0.annotations.contains { $0 === original },
                      "OCR refresh must preserve embedded source annotations")
+        RunLoop.main.run(until: Date().addingTimeInterval(0.03))
+        finishSearch()
+        precondition(search.query == "G(T)" && search.matchCount == doc.findString("G(T)", withOptions: .caseInsensitive).count,
+                     "Installing OCR text must refresh active search matches without losing the query")
+        precondition(abs(view.documentView!.enclosingScrollView!.contentView.bounds.minX - originBeforeOCR.x) < 1 &&
+                     abs(view.documentView!.enclosingScrollView!.contentView.bounds.minY - originBeforeOCR.y) < 1,
+                     "An OCR search refresh must not navigate away from the current reading position")
         view.setCurrentSelection(selection, animate: false)
         let actionCountBeforeDocumentChange = actionEvents.count
         view.onUserMouseUp?(releasePoint, false)
@@ -308,10 +382,12 @@ struct CanvasTests {
         coordinator.update(parent)
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         precondition(actionEvents.dropFirst(actionCountBeforeDocumentChange).allSatisfy { $0.0 == nil && $0.1 == nil }, "A queued selection action from the previous document must not appear after switching documents")
+        precondition(search.query.isEmpty && search.matchCount == 0 && view.highlightedSelections?.isEmpty != false,
+                     "Switching PDFs must clear the old search query and highlights")
         coordinator.detach()
         let after = try Data(contentsOf: source)
         precondition(after == before)
         if verifiesNavigation { print("NAVIGATION_TESTS_PASSED: cross-page centered navigation, repeat and superseded navigation, page callbacks") }
-        print("CANVAS_TESTS_PASSED: separate toolbar window geometry and native receiver boundary, focus-safe panel lifecycle and exact bounds, narrow toolbar measurement, cross-page line anchors, exact rectangles, preserved original annotation, owned markup lifecycle, selection cache survives focus loss, floating action edge placement and release snapshot, scroll dismissal, repeated selection reopens actions, stale action invalidation on document change, page callback, transparent canvas, filled comments/custom colors, manual zoom 20-600%, zoom survives sidebar update and resize, deferred deduplicated scale callback, source bytes unchanged")
+        print("CANVAS_TESTS_PASSED: separate toolbar window geometry and native receiver boundary, focus-safe panel lifecycle and exact bounds, narrow toolbar measurement, cross-page line anchors, exact rectangles, preserved original annotation, owned markup lifecycle, selection cache survives focus loss, floating action edge placement and release snapshot, scroll dismissal, repeated selection reopens actions, stale action invalidation on document change, page callback, transparent canvas, filled comments/custom colors, manual zoom 20-600%, zoom survives sidebar update and resize, deferred deduplicated scale callback, source bytes unchanged, vertical-only zoomed note jumps including transient offsets, cancellable cross-page search and result wraparound, separate find overlays, OCR search refresh and document reset")
     }
 }

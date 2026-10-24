@@ -49,6 +49,93 @@ struct ChatMessage: Codable, Identifiable, Equatable {
     var effort: String? = nil
     var createdAt: Date = Date()
     var failed: Bool = false
+    var reference: ChatReferenceSummary? = nil
+}
+
+enum ChatContextScope: String, Codable, CaseIterable, Identifiable {
+    case selection, page, nearby, custom, document
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .selection: "仅选中文字"
+        case .page: "划线所在页"
+        case .nearby: "前后各一页"
+        case .custom: "指定页码"
+        case .document: "整份文档"
+        }
+    }
+}
+
+struct ChatReferenceSummary: Codable, Equatable {
+    var scope: ChatContextScope
+    var pages: [Int]
+    var totalPages: Int
+}
+
+struct ChatContextPreference: Codable, Equatable {
+    var scope: ChatContextScope = .page
+    var pageRange: String = ""
+
+    /// Public page numbers are one-based, as shown in the reader footer.
+    func pages(anchor: Int, total: Int) throws -> [Int] {
+        guard total > 0, (1...total).contains(anchor) else { throw ChatContextError("请先打开 PDF。") }
+        let result: [Int]
+        switch scope {
+        case .selection: result = []
+        case .page: result = [anchor]
+        case .nearby: result = Array(max(1, anchor - 1)...min(total, anchor + 1))
+        case .document:
+            guard total <= 200 else { throw ChatContextError("参考范围最多 200 页，请缩小范围。") }
+            result = Array(1...total)
+        case .custom:
+            let normalized = pageRange.replacingOccurrences(of: "，", with: ",").replacingOccurrences(of: "、", with: ",")
+                .replacingOccurrences(of: "–", with: "-").replacingOccurrences(of: "—", with: "-")
+            var unique = Set<Int>()
+            for item in normalized.split(separator: ",", omittingEmptySubsequences: false) {
+                let ends = item.split(separator: "-", omittingEmptySubsequences: false).map { $0.trimmingCharacters(in: .whitespaces) }
+                guard (1...2).contains(ends.count), let first = Int(ends[0]), first >= 1,
+                      let last = Int(ends.last!), last >= first, last <= total else {
+                    throw ChatContextError("请输入有效页码，例如 1-3, 5。")
+                }
+                guard last - first < 200 else { throw ChatContextError("参考范围最多 200 页，请缩小范围。") }
+                unique.formUnion(first...last)
+                guard unique.count <= 200 else { throw ChatContextError("参考范围最多 200 页，请缩小范围。") }
+            }
+            result = unique.sorted()
+            guard !result.isEmpty else { throw ChatContextError("请输入有效页码，例如 1-3, 5。") }
+        }
+        return result
+    }
+}
+
+struct ChatContextError: Error {
+    var key: String
+    var detail: String
+    init(_ key: String, detail: String = "") { self.key = key; self.detail = detail }
+}
+
+struct ChatReference {
+    var summary: ChatReferenceSummary
+    var texts: [String]
+    var payload: [String: Any] {
+        ["scope": summary.scope.rawValue, "totalPages": summary.totalPages,
+         "pages": zip(summary.pages, texts).map { ["page": $0.0, "text": $0.1] as [String: Any] }]
+    }
+    @MainActor static func build(preference: ChatContextPreference, annotation: ReaderAnnotation, document: PDFDocument) throws -> ChatReference {
+        let numbers = try preference.pages(anchor: annotation.page + 1, total: document.pageCount)
+        var texts: [String] = [], missing: [Int] = [], count = 0
+        for number in numbers {
+            let text = (document.page(at: number - 1)?.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.isEmpty { missing.append(number) }
+            count += text.utf16.count
+            guard count <= 100_000 else { throw ChatContextError("参考文字超过 100,000 字符，请缩小页码范围。") }
+            texts.append(text)
+        }
+        guard missing.isEmpty else {
+            throw ChatContextError("以下页面尚无可用文字，请先运行本地 OCR 或调整范围：", detail: missing.map(String.init).joined(separator: ", "))
+        }
+        return ChatReference(summary: ChatReferenceSummary(scope: preference.scope, pages: numbers, totalPages: document.pageCount), texts: texts)
+    }
 }
 
 struct ReaderAnnotation: Codable, Identifiable, Equatable {
@@ -65,6 +152,7 @@ struct ReaderAnnotation: Codable, Identifiable, Equatable {
     var sourceFilename: String? = nil
     var deletedAt: Date? = nil
     var customColorHex: String? = nil
+    var contextPreference: ChatContextPreference? = nil
     var page: Int { rects.first?.page ?? 0 }
     var effectiveColorHex: String { normalizedHex(customColorHex) ?? color.hex }
     var effectiveColor: Color { Color(hex: effectiveColorHex) }

@@ -104,6 +104,12 @@ struct LeafReaderApp: App {
             CommandGroup(replacing:.newItem) {
                 Button(T("选择 PDF 文件夹…")) { store.chooseFolder() }.keyboardShortcut("o", modifiers:[.command,.shift])
             }
+            CommandGroup(after:.textEditing) {
+                Divider()
+                Button(T("搜索 PDF")) { NotificationCenter.default.post(name:.marginFind,object:nil) }.keyboardShortcut("f",modifiers:.command).disabled(store.document == nil)
+                Button(T("下一处")) { NotificationCenter.default.post(name:.marginFindNext,object:nil) }.keyboardShortcut("g",modifiers:.command).disabled(store.document == nil)
+                Button(T("上一处")) { NotificationCenter.default.post(name:.marginFindPrevious,object:nil) }.keyboardShortcut("g",modifiers:[.command,.shift]).disabled(store.document == nil)
+            }
             CommandMenu(T("阅读")) {
                 Button(T("高亮选中文字")) { store.createAnnotation(.highlight) }.keyboardShortcut("h",modifiers:[.command,.shift]).disabled(store.selection == nil)
                 Button(T("评论选中文字")) { store.createAnnotation(.comment) }.keyboardShortcut("m",modifiers:[.command,.shift]).disabled(store.selection == nil)
@@ -116,6 +122,8 @@ struct LeafReaderApp: App {
 @MainActor
 final class ReaderPresentation: ObservableObject {
     @Published var search = ""
+    @Published var showPDFSearch = false
+    @Published var pdfSearchFocus = 0
     @Published var expandedFolders: Set<String> = []
     @Published var collapsedSearchFolders: Set<String> = []
     @Published var showSettings = false
@@ -145,6 +153,7 @@ struct ReaderWindow: View {
     @ObservedObject var store: ReaderStore
     @ObservedObject var service: ChatService
     @StateObject private var presentation = ReaderPresentation()
+    @StateObject private var pdfSearch = PDFSearchState()
     var body: some View {
         ZStack {
             Color(hex:store.library.settings.themeHex)
@@ -174,6 +183,13 @@ struct ReaderWindow: View {
         }
         .sheet(isPresented:$presentation.showSettings) { SettingsPanel(store:store,section:$presentation.settingsSection) {presentation.showSettings=false} }
         .onReceive(NotificationCenter.default.publisher(for:.marginOpenSettings)) { _ in presentation.settingsSection = .general; presentation.showSettings=true }
+        .onReceive(NotificationCenter.default.publisher(for:.marginFind)) { _ in
+            guard store.document != nil else { return }
+            presentation.showPDFSearch = true; presentation.pdfSearchFocus += 1
+        }
+        .onReceive(NotificationCenter.default.publisher(for:.marginFindNext)) { _ in pdfSearch.next() }
+        .onReceive(NotificationCenter.default.publisher(for:.marginFindPrevious)) { _ in pdfSearch.previous() }
+        .onChange(of:store.documentID) { _,_ in pdfSearch.clear(); presentation.selectionAnchor = nil }
         .alert(T("需要留意"), isPresented:Binding(get:{ store.error != nil },set:{if !$0 {store.error=nil}})) { Button(T("好")) {store.error=nil} } message: { Text(store.error ?? "") }
         .onChange(of:store.library.folderPath) { _, _ in
             presentation.expandedFolders = []
@@ -277,6 +293,7 @@ struct ReaderWindow: View {
                 if store.isShowingDemo { Text(T("示例")).font(.system(size:fontSize(10))).foregroundStyle(accent).padding(.horizontal,7).padding(.vertical,3).background(accent.opacity(0.1),in:Capsule()) }
                 Spacer(minLength:4)
                 if store.isOpening { ProgressView().controlSize(.small) }
+                Button { presentation.showPDFSearch = true; presentation.pdfSearchFocus += 1 } label:{ controlIcon("magnifyingglass") }.buttonStyle(.plain).help(T("搜索 PDF")).disabled(store.document == nil)
                 ocrMenu
                 Button { post(.leafPDFZoomOut) } label:{ controlIcon("minus.magnifyingglass") }.buttonStyle(.plain).help(T("缩小"))
                 Text("\(Int((presentation.zoomScale * 100).rounded()))%")
@@ -286,8 +303,13 @@ struct ReaderWindow: View {
                 Button { post(.leafPDFFit) } label:{ controlIcon("arrow.up.left.and.arrow.down.right") }.buttonStyle(.plain).help(T("适合窗口"))
             }.padding(.horizontal,20).padding(.vertical,17)
             Divider().opacity(0.4)
+            if presentation.showPDFSearch, store.document != nil {
+                PDFSearchBar(search:pdfSearch,focusToken:presentation.pdfSearchFocus,localize:T) {
+                    presentation.showPDFSearch = false; pdfSearch.clear()
+                }
+            }
             if let document = store.document, let id = store.documentID {
-                PDFCanvas(document:document,documentID:id,annotations:store.annotations,selectedAnnotationID:store.selectedAnnotationID,initialPage:store.currentPage,navigationToken:store.navigationToken,navigationRect:store.navigationRect,documentRevision:store.documentRevision,canvasBackground:.clear,onScale:{presentation.zoomScale=$0},onSelection:store.receiveSelection,onPage:store.pageChanged,onAnnotationClick:store.focusAnnotation,hasStoredSelection:store.selection != nil,onSelectionActions:{ snapshot, anchor in
+                PDFCanvas(document:document,documentID:id,annotations:store.annotations,selectedAnnotationID:store.selectedAnnotationID,initialPage:store.currentPage,navigationToken:store.navigationToken,navigationRect:store.navigationRect,documentRevision:store.documentRevision,canvasBackground:.clear,searchState:pdfSearch,onScale:{presentation.zoomScale=$0},onSelection:store.receiveSelection,onPage:store.pageChanged,onAnnotationClick:store.focusAnnotation,hasStoredSelection:store.selection != nil,onSelectionActions:{ snapshot, anchor in
                     if let snapshot { store.receiveSelection(snapshot) }
                     presentation.selectionAnchor = anchor
                 })
@@ -522,7 +544,7 @@ struct ReaderWindow: View {
             if let error=store.threadErrors[annotation.id] { Text(T(error)).font(.system(size:fontSize(10))).foregroundStyle(Color(hex:"AA6F53")).padding(.horizontal,16).padding(.vertical,6) }
             VStack(alignment:.leading,spacing:9) {
                 TextEditor(text:Binding(get:{store.drafts[annotation.id] ?? ""},set:{store.drafts[annotation.id]=$0})).font(.system(size:fontSize(12))).scrollContentBackground(.hidden).frame(height:72).padding(8).background(.white,in:RoundedRectangle(cornerRadius:10)).overlay(alignment:.topLeading) { if (store.drafts[annotation.id] ?? "").isEmpty { Text(annotation.messages.isEmpty ? T("输入你的问题…") : T("继续追问…")).font(.system(size:fontSize(12))).foregroundStyle(muted.opacity(0.75)).padding(.horizontal,14).padding(.top,16).allowsHitTesting(false) } }.overlay(RoundedRectangle(cornerRadius:10).stroke(Color(hex:"DCE6DD")))
-                HStack { Text(T("上下文：选中文字 + 当前页")).font(.system(size:fontSize(9))).foregroundStyle(muted); Spacer(); if store.sending.contains(annotation.id) {Button(T("停止")) {Task {await service.cancel(threadID:annotation.id)}}.controlSize(.small)} else { Button {Task {await store.sendQuestion(service:service)}} label:{Label(T("发送"),systemImage:"arrow.up")}.buttonStyle(.borderedProminent).controlSize(.small).disabled(!service.authenticated || !service.planEnabled || (store.drafts[annotation.id] ?? "").trimmingCharacters(in:.whitespacesAndNewlines).isEmpty) } }
+                HStack { ChatContextControl(store:store,annotation:annotation); Spacer(); if store.sending.contains(annotation.id) {Button(T("停止")) {Task {await service.cancel(threadID:annotation.id)}}.controlSize(.small)} else { Button {Task {await store.sendQuestion(service:service)}} label:{Label(T("发送"),systemImage:"arrow.up")}.buttonStyle(.borderedProminent).controlSize(.small).disabled(!service.authenticated || !service.planEnabled || (store.drafts[annotation.id] ?? "").trimmingCharacters(in:.whitespacesAndNewlines).isEmpty) } }
             }.padding(15)
         }
     }
@@ -532,7 +554,16 @@ struct ReaderWindow: View {
         let expanded = presentation.expandedMessages.contains(message.id)
         return VStack(alignment:.leading,spacing:8) {
             HStack { Text(isUser ? T("你") : "AI").font(.system(size:fontSize(10),weight:.semibold)); Spacer(); if !isUser { Text([message.model,message.effort].compactMap{$0}.joined(separator:" · ")).font(.system(size:fontSize(8))).lineLimit(1) } }.foregroundStyle(muted)
-            Text(.init(isLong && !expanded ? String(message.text.prefix(800))+"…" : message.text)).font(.system(size:fontSize(13))).lineSpacing(4).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading)
+            if isUser {
+                Text(.init(isLong && !expanded ? String(message.text.prefix(800))+"…" : message.text)).font(.system(size:fontSize(13))).lineSpacing(4).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading)
+            } else {
+                MathMessageView(text:message.text,fontSize:fontSize(13),textColor:NSColor(ink))
+                    .frame(maxHeight:isLong && !expanded ? 260 : nil,alignment:.top).clipped()
+            }
+            if let reference = message.reference {
+                Text(T("参考") + ": " + T(reference.scope.label) + (reference.pages.isEmpty ? "" : " · " + ChatReferenceSummary.compactPages(reference.pages)))
+                    .font(.system(size:fontSize(9))).foregroundStyle(muted).lineLimit(2)
+            }
             if isLong {Button {if expanded {presentation.expandedMessages.remove(message.id)} else {presentation.expandedMessages.insert(message.id)}} label:{Text(expanded ? T("收起长回复") : T("展开完整回复")).frame(maxWidth:.infinity,alignment:.leading).padding(.vertical,4).contentShape(Rectangle())}.font(.system(size:fontSize(10))).buttonStyle(.plain).foregroundStyle(accent)}
             if message.failed {Label(T("这次发送未完成，可在下方重试"),systemImage:"exclamationmark.circle").font(.system(size:fontSize(10))).foregroundStyle(Color(hex:"AA6F53"))}
         }.padding(13).background(Color(hex:isUser ? store.library.userBubble : store.library.aiBubble),in:RoundedRectangle(cornerRadius:12)).padding(isUser ? .leading : .trailing,10)

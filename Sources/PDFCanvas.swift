@@ -35,6 +35,7 @@ struct PDFCanvas: NSViewRepresentable {
     var navigationRect: PageRect?
     var documentRevision: Int = 0
     var canvasBackground: NSColor = NSColor(hex: "E9EEEB")
+    var searchState: PDFSearchState? = nil
     var onScale: (CGFloat) -> Void = { _ in }
     var onSelection: (SelectionSnapshot?) -> Void
     var onPage: (Int) -> Void
@@ -105,8 +106,7 @@ struct PDFCanvas: NSViewRepresentable {
         private var lastScale: CGFloat?
         private var isUpdating = false
         private var generation = 0
-        private var lastFindText = ""
-        private var lastFindSelection: PDFSelection?
+        private weak var attachedSearch: PDFSearchState?
         private var actionRevision = 0
         private var actionAnchor: SelectionActionAnchor?
         private struct OCRViewport {
@@ -150,6 +150,9 @@ struct PDFCanvas: NSViewRepresentable {
             generation += 1
             NotificationCenter.default.removeObserver(self)
             removeManagedAnnotations()
+            attachedSearch?.detach()
+            attachedSearch = nil
+            view?.highlightedSelections = nil
             view?.onUserMouseUp = nil
             view?.onDismissSelectionActions = nil
             view?.managedAnnotationIDs = [:]
@@ -173,8 +176,6 @@ struct PDFCanvas: NSViewRepresentable {
                 lastSelection = nil
                 lastPage = nil
                 lastScale = nil
-                lastFindText = ""
-                lastFindSelection = nil
                 ocrViewport = nil
                 attachedDocument = parent.document
                 attachedDocumentID = parent.documentID
@@ -219,8 +220,17 @@ struct PDFCanvas: NSViewRepresentable {
                 if let selection, selection.pages.allSatisfy({ parent.document.index(for: $0) != NSNotFound }) {
                     view.setCurrentSelection(selection, animate: false)
                 }
-                lastFindSelection = nil
             }
+            if attachedSearch !== parent.searchState {
+                attachedSearch?.detach()
+                view.highlightedSelections = nil
+                attachedSearch = parent.searchState
+                attachedSearch?.onResultsChanged = { [weak self] navigate in
+                    self?.showSearchResults(navigate: navigate)
+                }
+            }
+            attachedSearch?.attach(document: parent.document, id: parent.documentID, revision: parent.documentRevision)
+            if changedDocument || changedPages { view.highlightedSelections = nil }
             attachedRevision = parent.documentRevision
             if !parent.hasStoredSelection { dismissSelectionActions() }
             if consumedSelection { view.clearSelection() }
@@ -456,6 +466,23 @@ struct PDFCanvas: NSViewRepresentable {
             }
         }
 
+        private func showSearchResults(navigate: Bool) {
+            guard let view, let search = attachedSearch else { return }
+            // PDFKit keeps highlightedSelections separate from the live mouse
+            // selection, so Find does not overwrite a pending comment or question.
+            let active = search.currentMatch - 1
+            view.highlightedSelections = search.matches.enumerated().compactMap { index, match in
+                guard let copy = match.copy() as? PDFSelection else { return nil }
+                copy.color = (index == active ? NSColor.systemOrange : NSColor.systemYellow).withAlphaComponent(index == active ? 0.55 : 0.28)
+                return copy
+            }
+            if navigate, let match = search.activeSelection, let page = match.pages.first {
+                dismissSelectionActions()
+                _ = view.centerAnchor(match.bounds(for: page), on: page, horizontally: true)
+                publishPage()
+            }
+        }
+
         @objc private func liveMagnifyBegan(_ notification: Notification) {
             guard let view, let scrollView = notification.object as? NSScrollView,
                   scrollView === view.documentView?.enclosingScrollView else { return }
@@ -477,15 +504,11 @@ struct PDFCanvas: NSViewRepresentable {
             case .leafPDFFit:
                 view.autoScales = true
             case .leafPDFFind:
-                let text = (notification.userInfo?["text"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !text.isEmpty else { return }
-                if text != lastFindText { lastFindText = text; lastFindSelection = nil }
-                let found = parent.document.findString(text, fromSelection: lastFindSelection, withOptions: .caseInsensitive)
-                    ?? parent.document.findString(text, fromSelection: nil, withOptions: .caseInsensitive)
-                guard let found else { NSSound.beep(); return }
-                lastFindSelection = found
-                view.setCurrentSelection(found, animate: true)
-                view.go(to: found)
+                if let text = notification.userInfo?["text"] as? String {
+                    attachedSearch?.query = text
+                } else {
+                    attachedSearch?.next()
+                }
             default: break
             }
         }
@@ -526,16 +549,15 @@ final class ReaderPDFView: PDFView {
         super.magnify(with: event)
     }
 
-    /// PDFKit's go(to:rect:on:) only makes a rectangle visible; a card click must also
-    /// bring an already-visible line to the same predictable place in the viewport.
+    /// Center the target vertically without changing horizontal position or zoom.
+    /// Search may explicitly reveal a result horizontally as well.
     @discardableResult
-    func centerAnchor(_ anchor: CGRect, on page: PDFPage) -> Bool {
+    func centerAnchor(_ anchor: CGRect, on page: PDFPage, horizontally: Bool = false) -> Bool {
         guard bounds.width > 1, bounds.height > 1 else { return false }
         layoutSubtreeIfNeeded()
         layoutDocumentView()
-        // Let PDFKit update its page navigation bookkeeping before centering the clip.
-        go(to: anchor, on: page)
-        layoutSubtreeIfNeeded()
+        // Do not call PDFKit go(to:) first: it can visibly move a zoomed page
+        // sideways before the final clip scroll restores its position.
         guard let documentView, let scrollView = documentView.enclosingScrollView else { return false }
         let clip = scrollView.contentView
         guard clip.bounds.width > 1, clip.bounds.height > 1,
@@ -543,14 +565,18 @@ final class ReaderPDFView: PDFView {
         let target = documentView.convert(convert(anchor, from: page), from: self)
         guard !target.isEmpty, !target.isNull, !target.isInfinite else { return false }
         var proposed = clip.bounds
-        proposed.origin = CGPoint(x: target.midX - proposed.width / 2, y: target.midY - proposed.height / 2)
+        proposed.origin.y = target.midY - proposed.height / 2
+        if horizontally { proposed.origin.x = target.midX - proposed.width / 2 }
         // Clip-view constraints handle the first/last page and documents narrower than
         // the viewport, including flipped document coordinates and zoomed pages.
         let constrained = clip.constrainBoundsRect(proposed)
         clip.scroll(to: constrained.origin)
         scrollView.reflectScrolledClipView(clip)
         setCanvasBackground(backgroundColor)
-        return clip.documentVisibleRect.intersects(target)
+        let visible = clip.documentVisibleRect
+        // A saved note may be outside the horizontally panned viewport. Its
+        // vertical position is still resolved and must not trigger retry jumps.
+        return visible.maxY >= target.minY && visible.minY <= target.maxY
     }
 
     override func mouseDown(with event: NSEvent) {

@@ -45,15 +45,16 @@ compile_check() {
   fi
 }
 
+compile_check context-tests "$MODELS"
 compile_check store-tests "$MODELS" "$CHAT" "$KEYCHAIN" "$STRINGS" "$PROJECT_ROOT/Sources/ReaderStore.swift" "$PROJECT_ROOT/Sources/ReaderOCR.swift" "$PROJECT_ROOT/Sources/LocalOCR.swift" "$PROJECT_ROOT/Sources/SampleDocument.swift"
-compile_check canvas-tests "$MODELS" "$PROJECT_ROOT/Sources/PDFCanvas.swift" "$PROJECT_ROOT/Sources/SelectionActionSurface.swift"
+compile_check canvas-tests "$MODELS" "$PROJECT_ROOT/Sources/PDFSearch.swift" "$PROJECT_ROOT/Sources/PDFCanvas.swift" "$PROJECT_ROOT/Sources/SelectionActionSurface.swift"
 compile_check chat-lifecycle "$MODELS" "$CHAT" "$KEYCHAIN"
 compile_check keychain-tests "$KEYCHAIN"
 compile_check localization-tests "$MODELS" "$CHAT" "$KEYCHAIN" "$STRINGS" "$PROJECT_ROOT/Sources/ReaderStore.swift" "$PROJECT_ROOT/Sources/ReaderOCR.swift" "$PROJECT_ROOT/Sources/LocalOCR.swift" "$PROJECT_ROOT/Sources/SampleDocument.swift"
 compile_check split-persistence-tests "$MODELS" "$CHAT" "$KEYCHAIN" "$STRINGS" "$PROJECT_ROOT/Sources/ReaderStore.swift" "$PROJECT_ROOT/Sources/ReaderOCR.swift" "$PROJECT_ROOT/Sources/LocalOCR.swift" "$PROJECT_ROOT/Sources/SampleDocument.swift" "$PROJECT_ROOT/Sources/ReaderSplitView.swift"
 compile_check outline-tests "$MODELS" "$PROJECT_ROOT/Sources/LibraryOutline.swift"
 compile_check sample-navigation-tests "$MODELS" "$CHAT" "$KEYCHAIN" "$STRINGS" "$PROJECT_ROOT/Sources/ReaderStore.swift" "$PROJECT_ROOT/Sources/ReaderOCR.swift" "$PROJECT_ROOT/Sources/LocalOCR.swift" "$PROJECT_ROOT/Sources/SampleDocument.swift"
-echo 'Compiled 8 native checks.' 
+echo 'Compiled 9 native checks.'
 
 run_check() {
   local name="$1"
@@ -67,6 +68,7 @@ run_check() {
   tail -n 1 "$TEST_RUN/$name.log"
 }
 
+run_check context-tests
 run_check store-tests
 run_check canvas-tests
 run_check chat-lifecycle
@@ -75,5 +77,5 @@ run_check localization-tests
 run_check split-persistence-tests
 run_check outline-tests
 run_check sample-navigation-tests
-printf '{"status":"passed","checks":["store-tests","canvas-tests","chat-lifecycle","keychain-tests","localization-tests","split-persistence-tests","outline-tests","sample-navigation-tests"],"externalAPICalls":0}\n' >"$TEST_RUN/result.json"
+printf '{"status":"passed","checks":["context-tests","store-tests","canvas-tests","chat-lifecycle","keychain-tests","localization-tests","split-persistence-tests","outline-tests","sample-navigation-tests"],"externalAPICalls":0}\n' >"$TEST_RUN/result.json"
 printf 'Native checks passed. Results: %s\n' "$TEST_RUN"

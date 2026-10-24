@@ -42,6 +42,13 @@ struct LocalizationTests {
         precondition(ReaderUIStrings.text("设置", language: .es) == "Ajustes")
         precondition(ReaderUIStrings.text("设置", language: .pt) == "Configurações")
         precondition(ReaderUIStrings.text("设置", language: .zhHant) == "設置")
+        for scope in ChatContextScope.allCases {
+            precondition(ReaderUIStrings.keys.contains(scope.label), "Untranslated context scope: \(scope.label)")
+        }
+        for key in ["请先打开 PDF。", "参考范围最多 200 页，请缩小范围。", "请输入有效页码，例如 1-3, 5。",
+                    "参考文字超过 100,000 字符，请缩小页码范围。", "以下页面尚无可用文字，请先运行本地 OCR 或调整范围："] {
+            precondition(ReaderUIStrings.keys.contains(key), "Untranslated context error: \(key)")
+        }
         precondition(ReaderUIStrings.text("第 24 页 · 引用原文", language: .fr) == "Page 24 · Passage d’origine")
         precondition(ReaderUIStrings.text("12 份 PDF · 本地保存", language: .ja) == "12 件の PDF · ローカル保存")
         let technicalDetail = " HTTP 503 / request-123"
@@ -54,7 +61,7 @@ struct LocalizationTests {
             let root = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
             let expression = try NSRegularExpression(pattern: #"(?:\bT|\bL|\bt|\blocalize|\blocalized)\(\s*"((?:\\.|[^"\\])*)""#)
             var missing: Set<String> = []
-            for filename in ["ReaderApp.swift", "SettingsPanel.swift", "ReaderStore.swift", "AnnotationColorControl.swift"] {
+            for filename in ["ReaderApp.swift", "SettingsPanel.swift", "ReaderStore.swift", "AnnotationColorControl.swift", "ChatContextControl.swift"] {
                 let source = try String(contentsOf: root.appendingPathComponent("Sources/" + filename), encoding: .utf8)
                 for match in expression.matches(in: source, range: NSRange(source.startIndex..., in: source)) {
                     guard let range = Range(match.range(at: 1), in: source) else { continue }

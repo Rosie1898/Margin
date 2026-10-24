@@ -8,7 +8,11 @@ When redistributing a build with a different Node.js version, include that distr
 
 ## System frameworks
 
-The reader uses Apple system frameworks, including PDFKit, Vision, and CoreText, and Node.js built-in modules. No external JavaScript packages are required. The OCR implementation runs on the Mac using Apple Vision.
+The reader uses Apple system frameworks, including PDFKit, Vision, CoreText, and WebKit, and Node.js built-in modules. The OCR implementation runs on the Mac using Apple Vision.
+
+## Offline Markdown and formula rendering
+
+The application bundles [KaTeX 0.19.1](https://github.com/KaTeX/KaTeX) (MIT), [Marked 18.1.1](https://github.com/markedjs/marked) (MIT), and [DOMPurify 3.4.17](https://github.com/cure53/DOMPurify) (Apache-2.0 or MPL-2.0) for AI reply rendering. Their scripts, styles, fonts, and full license texts are in [assets/math](assets/math) and `Margin.app/Contents/Resources/MathRenderer/`. Archive URLs, integrity values, and SHA-256 checksums are recorded in [assets/math/SOURCE.json](assets/math/SOURCE.json). Rendering uses only bundled assets and does not contact a CDN.
 
 ## Optional sample paper
 

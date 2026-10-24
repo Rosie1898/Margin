@@ -304,7 +304,7 @@ final class ChatService: ObservableObject {
     }
 
     func send(threadID: UUID, documentID: String, context: [String: Any], model: String,
-              effort: String, text: String, onDelta: @escaping (String) -> Void) async throws -> [ChatMessage] {
+              effort: String, text: String, reference: [String: Any]? = nil, onDelta: @escaping (String) -> Void) async throws -> [ChatMessage] {
         guard !submitting.contains(threadID) else { throw ServiceError("这条讨论正在回复，请等待或先取消。") }
         guard connected && authenticated && planEnabled else { throw ServiceError("请先登录 ChatGPT 并完成套餐授权。") }
         submitting.insert(threadID)
@@ -320,6 +320,7 @@ final class ChatService: ObservableObject {
                                    "context": documentContext, "model": model, "effort": effort, "text": text,
                                    "requestId": UUID().uuidString.lowercased()]
         if let image { body["imageDataUrl"] = image }
+        if let reference { body["reference"] = reference }
         do {
             let start: JobStartResponse = try await request("/api/chat/start", body: body)
             guard UUID(uuidString: start.jobId) != nil else { throw ServiceError("本地服务返回了无效的回复标识。") }
@@ -412,7 +413,8 @@ final class ChatService: ObservableObject {
             let date = fractional.date(from: message.createdAt) ?? seconds.date(from: message.createdAt) ?? Date(timeIntervalSince1970: 0)
             let id = message.id.flatMap(UUID.init(uuidString:)) ?? stableUUID(message.id ?? "\(index)|\(message.role)|\(message.createdAt)|\(message.text)")
             return ChatMessage(id: id, role: message.role, text: message.text, model: message.model,
-                               effort: message.effort, createdAt: date, failed: message.status == "failed" || message.failed == true)
+                               effort: message.effort, createdAt: date, failed: message.status == "failed" || message.failed == true,
+                               reference: message.reference)
         }
     }
 
@@ -501,4 +503,5 @@ private struct MessageResponse: Decodable {
     let createdAt: String
     let status: String?
     let failed: Bool?
+    let reference: ChatReferenceSummary?
 }

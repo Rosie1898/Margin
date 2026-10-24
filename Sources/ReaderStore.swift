@@ -452,18 +452,25 @@ final class ReaderStore: ObservableObject {
     }
     func sendQuestion(service: ChatService) async {
         guard let annotation = selectedAnnotation, annotation.kind == .question, let did = documentID,
-              let record, !sending.contains(annotation.id), let draft = drafts[annotation.id]?.trimmingCharacters(in: .whitespacesAndNewlines), !draft.isEmpty else { return }
+              let record, let document, !sending.contains(annotation.id), let draft = drafts[annotation.id]?.trimmingCharacters(in: .whitespacesAndNewlines), !draft.isEmpty else { return }
         let id = annotation.id
         guard service.authenticated && service.planEnabled else { error = localized("请先连接 ChatGPT 账号，再发送问题。", "Connect your ChatGPT account before sending a question."); return }
         guard !library.selectedModel.isEmpty else { error = localized("请先选择模型。", "Choose a model first."); return }
+        let reference: ChatReference
+        do {
+            reference = try ChatReference.build(preference: annotation.contextPreference ?? ChatContextPreference(), annotation: annotation, document: document)
+        } catch let issue as ChatContextError {
+            threadErrors[id] = t(issue.key) + issue.detail
+            return
+        } catch { threadErrors[id] = error.localizedDescription; return }
         let model = library.selectedModel, effort = library.selectedEffort
         sending.insert(id); threadErrors[id] = nil; partials[id] = ""
         drafts[id] = ""
-        mutateAnnotation(id, documentID: did) { $0.messages.append(ChatMessage(role:"user", text:draft, model:model, effort:effort)) }
+        mutateAnnotation(id, documentID: did) { $0.messages.append(ChatMessage(role:"user", text:draft, model:model, effort:effort, reference:reference.summary)) }
         do {
             let messages = try await service.send(threadID:id, documentID:did,
                 context:["filename":annotation.sourceFilename ?? record.title, "quote":annotation.quote, "page":annotation.page + 1, "pageText":annotation.pageText],
-                model:model, effort:effort, text:draft, onDelta:{ [weak self] text in self?.partials[id] = text })
+                model:model, effort:effort, text:draft, reference:reference.payload, onDelta:{ [weak self] text in self?.partials[id] = text })
             mutateAnnotation(id, documentID: did) { $0.messages = messages }
         } catch {
             threadErrors[id] = error.localizedDescription

@@ -127,7 +127,11 @@ test('reader requests accept cancellation and distinguish document data from use
     fetchImpl: async (_url, options) => new Promise((resolve, reject) => {
       const body = JSON.parse(options.body);
       assert.match(body.instructions, /untrusted document content/);
-      assert.match(body.instructions, /not the complete PDF/);
+      assert.match(body.instructions, /complete document/);
+      assert.match(body.instructions, /latest supplied range/);
+      assert.match(body.instructions, /do not claim to have read unsupplied pages/);
+      assert.ok(body.instructions.includes(String.raw`\[ ... \]`));
+      assert.ok(body.instructions.includes(String.raw`\( ... \)`));
       options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
     }) });
   controller.abort(new Error('test user cancelled'));

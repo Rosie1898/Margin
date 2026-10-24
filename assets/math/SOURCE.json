@@ -1,0 +1,29 @@
+{
+  "dependencies": [
+    {
+      "name": "katex",
+      "version": "0.19.1",
+      "archive": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+      "integrity": "sha512-jG8uKntjSEcm2EpQOh0XturpPuuC9r3Sq5HLHdsFdWZT27E672SF19QEi+of0/YeOy15lDgRhKvr5614uRrEfA==",
+      "sha256": "24da5a599eb2fcede2e270b99a6ff48bca816beecc95feeb84e8cccbd1bb34fd",
+      "project": "https://katex.org"
+    },
+    {
+      "name": "marked",
+      "version": "18.1.1",
+      "archive": "https://registry.npmjs.org/marked/-/marked-18.1.1.tgz",
+      "integrity": "sha512-zEGgrtUG8crk+TrMacJSVABU4DYDDkS8uqgU3ohrn/2fW9C2AEfUrO3m6IhpIpQpl7YcVpiXXC9cSMWDANT3dg==",
+      "sha256": "c05b3cff890d35e1208805a01fd0501571d09a81e725de0559b10bdfae90adad",
+      "project": "https://marked.js.org"
+    },
+    {
+      "name": "dompurify",
+      "version": "3.4.17",
+      "archive": "https://registry.npmjs.org/dompurify/-/dompurify-3.4.17.tgz",
+      "integrity": "sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w==",
+      "sha256": "056cbdae276897208b88c21d1d779adfa09ad7be488a2f510a28e900d3bbffe7",
+      "project": "https://github.com/cure53/DOMPurify"
+    }
+  ],
+  "usage": "Bundled offline for discussion Markdown and LaTeX rendering; no runtime CDN requests."
+}
