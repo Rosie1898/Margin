@@ -2,15 +2,13 @@
 
 [简体中文](#简体中文) | [English](#english)
 
-**Source v0.5.0 · macOS 14+ · Apple Silicon**
+**v0.5.0 · macOS 14+ · Apple Silicon**
 
 ## 简体中文
 
 一个面向 macOS 的本地 PDF 阅读器，把高亮、评论和 AI 讨论留在原文旁边。
 
-以下功能说明对应本地源码 **0.5.0（尚未发布）**；最新公开下载版本为 **0.4.0**。
-
-[下载 Margin 0.4.0](https://github.com/Rosie1898/Margin/releases/download/v0.4.0/Margin-0.4.0-macOS-arm64.zip) · [发布说明](https://github.com/Rosie1898/Margin/releases/tag/v0.4.0)
+[下载 Margin 0.5.0](https://github.com/Rosie1898/Margin/releases/download/v0.5.0/Margin-0.5.0-macOS-arm64.zip) · [发布说明](https://github.com/Rosie1898/Margin/releases/tag/v0.5.0)
 
 ### 功能
 
@@ -19,7 +17,7 @@
 - **保持阅读位置**：点击评论跳转时只调整上下位置，保留放大后的横向位置。
 - **文内搜索**：`⌘F` 查找关键词，`⌘G` / `⌘⇧G` 跳到下一处或上一处；可搜索原有文字层和已完成 OCR 的页面。
 - **可选 AI 参考范围**：每次提问可选择仅选中文字、划线所在页、前后各一页、指定页码或整份文档；同一条讨论保留历史。
-- **公式排版**：AI 回复中的 Markdown 和 KaTeX 数学公式在本机显示；脚本、字体均随应用提供，可离线排版。
+- **公式排版**：AI 回复中的 Markdown 和 KaTeX 数学公式在本机显示；脚本、字体均随应用提供，可离线排版，已保存的回复也会使用新排版。
 - **本地 OCR**：扫描页自动使用 Apple Vision 识别，也可处理整份 PDF。识别结果保存在本机，不消耗 ChatGPT 用量，不改写原 PDF。
 - **ChatGPT 账号连接**：通过浏览器登录授权，选择账号返回的模型与推理强度；macOS 钥匙串保存续期凭据，下次启动自动尝试恢复登录。
 - **可恢复的删除**：删除后有 5 秒撤销提示，也可在设置中的“最近删除”恢复；本版没有恢复截止日，不会自动永久清除。
@@ -108,7 +106,7 @@ bash scripts/test-math.sh
 
 开发时可设置 `LEAF_DATA_DIR` 为独立的绝对路径，避免使用日常阅读记录。
 
-[后端接口](Backend/README.md) · [版本变化](CHANGELOG.md) · [0.4.0 发布说明](RELEASE_NOTES.md) · [字号示例与文学出处](FONT_SAMPLES.md) · [第三方声明](THIRD_PARTY_NOTICES.md)
+[后端接口](Backend/README.md) · [版本变化](CHANGELOG.md) · [0.5.0 发布说明](RELEASE_NOTES.md) · [字号示例与文学出处](FONT_SAMPLES.md) · [第三方声明](THIRD_PARTY_NOTICES.md)
 
 ---
 
@@ -116,9 +114,7 @@ bash scripts/test-math.sh
 
 A local PDF reader for macOS that keeps highlights, notes, and AI conversations beside the passages they refer to.
 
-This guide describes the local **0.5.0 source (unreleased)**. The latest public download is **0.4.0**.
-
-[Download Margin 0.4.0](https://github.com/Rosie1898/Margin/releases/download/v0.4.0/Margin-0.4.0-macOS-arm64.zip) · [Release notes](https://github.com/Rosie1898/Margin/releases/tag/v0.4.0)
+[Download Margin 0.5.0](https://github.com/Rosie1898/Margin/releases/download/v0.5.0/Margin-0.5.0-macOS-arm64.zip) · [Release notes](https://github.com/Rosie1898/Margin/releases/tag/v0.5.0)
 
 ### Features
 
@@ -127,7 +123,7 @@ This guide describes the local **0.5.0 source (unreleased)**. The latest public 
 - **Stable reading position**: jumping to a comment scrolls vertically while preserving your horizontal position when zoomed in.
 - **Search within PDFs**: use `⌘F` to find text and `⌘G` / `⌘⇧G` to move to the next or previous match. Search covers existing text layers and pages with completed OCR.
 - **Selectable AI context**: each question can use just the selection, its page, the current and adjacent pages, custom pages, or the entire document. The conversation keeps its history.
-- **Math rendering**: Markdown and KaTeX formulas in AI replies render locally, with bundled scripts and fonts available offline.
+- **Math rendering**: Markdown and KaTeX formulas in AI replies render locally, with bundled scripts and fonts available offline. Previously saved replies also use the new rendering.
 - **On-device OCR**: scanned pages are recognized automatically with Apple Vision, with an option to process the entire PDF. Results stay on your Mac, do not consume ChatGPT usage, and leave the original PDF unchanged.
 - **ChatGPT account connection**: sign in through your browser and choose from the models and reasoning levels returned for your account. Renewal credentials are stored in macOS Keychain, and the app attempts to restore sign-in on its next launch.
 - **Recoverable deletion**: undo within 5 seconds or restore items from Recently Deleted in Settings. This version has no recovery deadline and does not automatically erase deleted items permanently.
@@ -216,4 +212,4 @@ Backend checks use mocked responses and do not call live models. Native checks c
 
 During development, set `LEAF_DATA_DIR` to a separate absolute path to keep test data separate from your everyday reading records.
 
-[Backend API](Backend/README.md) · [Changelog](CHANGELOG.md) · [0.4.0 release notes](RELEASE_NOTES.md) · [Font-size samples and literary sources](FONT_SAMPLES.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
+[Backend API](Backend/README.md) · [Changelog](CHANGELOG.md) · [0.5.0 release notes](RELEASE_NOTES.md) · [Font-size samples and literary sources](FONT_SAMPLES.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
