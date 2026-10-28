@@ -1,0 +1,4 @@
+nodeLinker: hoisted
+enableGlobalVirtualStore: false
+allowBuilds:
+  electron-winstaller: false

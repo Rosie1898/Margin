@@ -1,0 +1,74 @@
+{
+  "source": "../../mac/current/Backend",
+  "source_version": "0.5.0",
+  "date": "2026-10-26",
+  "scope": "Local source provenance; not a claim of live Windows account verification.",
+  "files": [
+    {
+      "file": "auth-persistence.test.mjs",
+      "source_sha256": "cebf137b3c52401a5278c16b536be626fb7ab0cf262ba2915b67aec3f39c2c01",
+      "windows_sha256": "b07bea4e526df16a1b269dd6efae83962f2fe7b215539b44fe55ac75c116e2cc",
+      "note": "Retries isolated temporary-directory cleanup on Windows file locks; production backend unchanged."
+    },
+    {
+      "file": "auth.mjs",
+      "source_sha256": "ac4c2d95e3c22ad1e44441ca7e279e3de7d152f4026cdf2ead8b368563575d5a",
+      "windows_sha256": "ac4c2d95e3c22ad1e44441ca7e279e3de7d152f4026cdf2ead8b368563575d5a",
+      "note": "Copied unchanged from the local mac/current source snapshot."
+    },
+    {
+      "file": "auth.test.mjs",
+      "source_sha256": "a7594c7987577257a14ba7afe7ea944a38f705447012d4d342f0b1e1baca007c",
+      "windows_sha256": "7a62ec0022f211f473cd9538f07580e14f157c4d7ea1bbf84dc26a0081d409a0",
+      "note": "Retries isolated temporary-directory cleanup on Windows file locks; production backend unchanged."
+    },
+    {
+      "file": "conversations.mjs",
+      "source_sha256": "5cdd8df56ff4ac689a18373a880ec42c3ed4a62e409710ce44657a7ea5c46bae",
+      "windows_sha256": "5cdd8df56ff4ac689a18373a880ec42c3ed4a62e409710ce44657a7ea5c46bae",
+      "note": "Copied unchanged from the local mac/current source snapshot."
+    },
+    {
+      "file": "conversations.test.mjs",
+      "source_sha256": "92c1453690e4e6cef5bf2ce29697297884b77407bf81612ed3a98a6e0a90090d",
+      "windows_sha256": "e70518fb27d8f9d2adc683cf30c7ce10a38c33b2aeb1da8d8edd643d8c3a976d",
+      "note": "Windows guard for POSIX-only mode assertion; retries isolated temporary-directory cleanup on Windows file locks."
+    },
+    {
+      "file": "core.mjs",
+      "source_sha256": "f8e70c7fbf289f6c16a7a3e7cb01076150bde1362bd9f97705b64f6893894381",
+      "windows_sha256": "f8e70c7fbf289f6c16a7a3e7cb01076150bde1362bd9f97705b64f6893894381",
+      "note": "Copied unchanged from the local mac/current source snapshot."
+    },
+    {
+      "file": "core.test.mjs",
+      "source_sha256": "8cefb5791cfd02f6f8bdd29d7dd8cc58a526e8c7dcb75fb97079d520d350b3a1",
+      "windows_sha256": "8cefb5791cfd02f6f8bdd29d7dd8cc58a526e8c7dcb75fb97079d520d350b3a1",
+      "note": "Copied unchanged from the local mac/current source snapshot."
+    },
+    {
+      "file": "credential-store.mjs",
+      "source_sha256": "b08208bd00407ecd08257f512896763fb6ace7b16ea23ac81fc2cb95f7c4d8bf",
+      "windows_sha256": "b08208bd00407ecd08257f512896763fb6ace7b16ea23ac81fc2cb95f7c4d8bf",
+      "note": "Copied unchanged from the local mac/current source snapshot."
+    },
+    {
+      "file": "credential-store.test.mjs",
+      "source_sha256": "4b239acc00db81bae06808c7bb3bf7853ceb81518f3529a8b6f6ca801980c055",
+      "windows_sha256": "4b239acc00db81bae06808c7bb3bf7853ceb81518f3529a8b6f6ca801980c055",
+      "note": "Copied unchanged from the local mac/current source snapshot."
+    },
+    {
+      "file": "server.mjs",
+      "source_sha256": "5b5fc58453aadaa368f3e2365caff871d5234b68ecf5a247e9397727c8a033eb",
+      "windows_sha256": "5b5fc58453aadaa368f3e2365caff871d5234b68ecf5a247e9397727c8a033eb",
+      "note": "Copied unchanged from the local mac/current source snapshot."
+    },
+    {
+      "file": "server.test.mjs",
+      "source_sha256": "302726eb725094076502a58304e72597e63f75ee4acc366b11ed9560ed1f1cf9",
+      "windows_sha256": "d66f8886aa40908f42363e64eed0ec93d61775bcd03a5b78216bfb008a876837",
+      "note": "Retries isolated temporary-directory cleanup on Windows file locks; production backend unchanged."
+    }
+  ]
+}

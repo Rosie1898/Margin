@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Margin</title>
+  <link rel="stylesheet" href="./vendor/katex.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header id="titlebar"><div class="window-buttons"><button data-window="minimize" aria-label="Minimize">&#x2500;</button><button data-window="maximize" aria-label="Maximize">&#x25a1;</button><button data-window="close" aria-label="Close">&#x2715;</button></div></header>
+  <main id="workspace">
+    <aside id="library" class="pane">
+      <button id="choose-folder" class="folder-button"><span data-icon="folder-plus"></span><span data-i18n="选择本地文件夹"></span></button>
+      <div class="library-heading"><span id="folder-name" data-i18n="本地文件夹"></span><button id="refresh" class="icon-button" data-tip="刷新文件列表" data-icon="refresh"></button></div>
+      <label class="library-search"><span data-icon="search"></span><input id="file-search" data-placeholder="查找 PDF" autocomplete="off"></label>
+      <nav id="file-list" aria-label="PDF files"></nav>
+      <footer class="library-footer"><div class="local-status"><span data-icon="drive"></span><span id="file-count"></span></div><div class="footer-actions"><button id="settings" class="icon-button" data-tip="设置" data-icon="settings"></button><button id="sample" class="text-button"><span data-icon="book"></span><span data-i18n="打开入门示例"></span></button></div></footer>
+    </aside>
+    <div id="split-left" class="splitter" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize library"></div>
+    <section id="reader" class="pane">
+      <div class="reader-toolbar"><button id="sample-back" class="icon-button" data-icon="back" data-tip="返回阅读" hidden></button><div id="document-title" data-i18n="你的阅读空间"></div><div class="reader-tools"><button id="find" class="icon-button" data-icon="search" data-tip="搜索 PDF"></button><div class="menu-anchor"><button id="ocr-menu-button" class="icon-button" data-icon="scan" data-tip="本地文字识别"></button><div id="ocr-menu" class="popover" hidden><button id="ocr-page" data-i18n="识别本页文字"></button><button id="ocr-document" data-i18n="识别整份 PDF"></button><div class="menu-separator"></div><label class="ocr-language-row"><span data-i18n="OCR 语言"></span><select id="ocr-language" aria-label="OCR language"></select></label><button id="ocr-cancel" data-i18n="取消文字识别" hidden></button></div></div><button id="zoom-out" class="icon-button" data-icon="minus" data-tip="缩小"></button><button id="zoom-value" class="zoom-value" title="Zoom">100%</button><button id="zoom-in" class="icon-button" data-icon="plus" data-tip="放大"></button><button id="fit" class="icon-button" data-icon="fit" data-tip="适合窗口"></button></div></div>
+      <div id="searchbar" hidden><span data-icon="search"></span><input id="pdf-search" data-placeholder="在文档中查找…" autocomplete="off"><span id="search-count"></span><button id="search-prev" class="icon-button" data-icon="up" data-tip="上一处"></button><button id="search-next" class="icon-button" data-icon="down" data-tip="下一处"></button><button id="search-close" class="icon-button" data-icon="close" data-tip="关闭搜索"></button></div>
+      <div id="reading-space"><div id="empty-reader"><span class="empty-book" data-icon="book-open"></span><h1 data-i18n="让问题留在它出现的地方"></h1><p data-i18n="选择左侧的 PDF，拖选文字后\n就可以高亮、评论，或开始一段 AI 讨论。"></p><div class="empty-actions"><button id="empty-choose" class="primary" data-i18n="选择文件夹"></button><button id="open-file" data-i18n="打开 PDF"></button></div></div><div id="pdf-scroll" tabindex="0" aria-label="PDF document" hidden><div id="pdf-pages"></div></div></div>
+      <footer class="reader-footer"><div id="reader-status" role="status"></div><div class="page-navigation"><button id="prev-page" class="icon-button" data-icon="left" data-tip="上一页"></button><input id="page-number" type="number" min="1" value="0" aria-label="Page"><span id="page-total">/ 0</span><button id="next-page" class="icon-button" data-icon="right" data-tip="下一页"></button></div></footer>
+    </section>
+    <div id="split-right" class="splitter" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize discussion"></div>
+    <aside id="discussion" class="pane"><div class="discussion-heading"><span data-icon="message"></span><h2 data-i18n="笔记与讨论"></h2><button id="trash" class="icon-button" data-icon="trash" data-tip="最近删除"></button><span id="note-count" class="count-badge">0</span></div><div id="account"></div><div id="notes"></div></aside>
+  </main>
+  <div id="selection-toolbar" hidden><div class="selection-actions"><button data-annotation="highlight"><span data-icon="highlight"></span><span data-i18n="高亮"></span></button><button data-annotation="comment"><span data-icon="message"></span><span data-i18n="评论"></span></button><button data-annotation="question"><span data-icon="sparkles"></span><span data-i18n="问 AI"></span></button></div><div class="selection-colors"><button data-color="A8DCC5" style="--swatch:#A8DCC5" aria-label="Mint"></button><button data-color="F4D884" style="--swatch:#F4D884" aria-label="Yellow"></button><button data-color="A8CFF0" style="--swatch:#A8CFF0" aria-label="Blue"></button><button data-color="E9BBD2" style="--swatch:#E9BBD2" aria-label="Pink"></button><button id="selection-color" class="annotation-color" data-tip="自定义标注颜色"><span class="annotation-color-swatch">+</span></button></div></div>
+  <div id="toast" role="status" hidden></div>
+  <dialog id="settings-dialog"><header class="settings-dialog-header"><svg class="brand-image" viewBox="0 0 1024 1024" aria-hidden="true"><rect x="48" y="48" width="928" height="928" rx="210"/><path d="M266 738V286H366L512 550 658 286H758V738H658V478L549 670H475L366 478V738Z"/></svg><div><h2 data-i18n="设置"></h2><span>Margin</span></div><button id="close-settings" class="primary" data-i18n="完成"></button></header><div class="settings-shell"><nav class="settings-nav"><button data-section="general"><span data-icon="settings"></span><span data-i18n="通用"></span></button><button data-section="personalization"><span data-icon="personalization"></span><span data-i18n="个性化"></span></button><button data-section="appearance"><span data-icon="palette"></span><span data-i18n="外观"></span></button><button data-section="trash"><span data-icon="trash"></span><span data-i18n="最近删除"></span></button><span class="settings-version"></span></nav><section class="settings-content"><div id="settings-body"></div></section></div></dialog>
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>

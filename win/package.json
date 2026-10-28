@@ -1,0 +1,43 @@
+{
+  "name": "margin-windows",
+  "version": "0.5.2",
+  "private": true,
+  "description": "Margin local PDF reader for Windows",
+  "author": "Margin",
+  "main": "src/main.mjs",
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "start": "electron .",
+    "prepare:assets": "node scripts/prepare-assets.mjs",
+    "postinstall": "node node_modules/electron/install.js && node scripts/prepare-assets.mjs",
+    "test": "node scripts/run-tests.mjs",
+    "test:ui": "node scripts/test-ui.mjs",
+    "build": "node scripts/build.mjs",
+    "dist": "node scripts/build.mjs",
+    "package": "node scripts/build.mjs --package-only",
+    "install:local": "node scripts/build.mjs --install-only"
+  },
+  "dependencies": {
+    "dompurify": "3.4.17",
+    "katex": "0.19.1",
+    "marked": "18.1.1",
+    "pdfjs-dist": "6.4.299"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0",
+    "playwright": "1.60.0"
+  },
+  "build": {
+    "appId": "com.margin.reader",
+    "productName": "Margin",
+    "artifactName": "Margin-${version}-Windows-${arch}-Setup.${ext}",
+    "directories": { "output": "dist" },
+    "files": ["src/**/*", "backend/*.mjs", "!backend/*.test.mjs", "assets/**/*", "native/**/*", "package.json", "THIRD_PARTY_NOTICES.md"],
+    "asarUnpack": ["native/**/*"],
+    "win": { "icon": "assets/AppIcon.ico", "target": ["nsis"], "signExecutable": false },
+    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "deleteAppDataOnUninstall": false },
+    "fileAssociations": [{ "ext": "pdf", "name": "PDF Document", "role": "Viewer" }]
+  }
+}

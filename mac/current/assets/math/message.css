@@ -1,0 +1,26 @@
+:root { color-scheme: light dark; }
+html, body { margin: 0; padding: 0; width: 100%; background: transparent; overflow: hidden; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px; line-height: 1.55; color: #294039; -webkit-user-select: text; user-select: text; }
+#message { display: flow-root; box-sizing: border-box; width: 100%; overflow-wrap: anywhere; }
+#message > :first-child { margin-top: 0; }
+#message > :last-child { margin-bottom: 0; }
+p, ul, ol, blockquote, pre, table { margin: 0.65em 0; }
+ul, ol { padding-left: 1.6em; }
+li > p { margin: 0.2em 0; }
+h1,h2,h3,h4,h5,h6 { font-size: 1.12em; line-height: 1.4; margin: 1em 0 0.35em; }
+blockquote { margin-left: 0; padding-left: 0.85em; border-left: 3px solid currentColor; opacity: 0.85; }
+a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+code, pre { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 0.92em; }
+code { background: color-mix(in srgb, currentColor 7%, transparent); border-radius: 3px; padding: 0.1em 0.25em; }
+pre { overflow-x: auto; white-space: pre; padding: 0.65em; border-radius: 6px; background: color-mix(in srgb, currentColor 7%, transparent); }
+pre code { padding: 0; background: none; }
+hr { border: 0; border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent); margin: 1em 0; }
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; font-size: 0.95em; }
+th, td { padding: 0.35em 0.6em; border: 1px solid color-mix(in srgb, currentColor 20%, transparent); text-align: left; }
+.math-display { display: block; width: 100%; overflow-x: auto; overflow-y: hidden; padding: 0.15em 0 0.35em; margin: 0.55em 0; }
+.math-display .katex-display { margin: 0.1em 0; text-align: left; width: max-content; min-width: 100%; }
+.math-display .katex-display > .katex { text-align: left; }
+.math-inline { display: inline; }
+.katex { font-size: 1.08em; }
+.katex-error { white-space: pre-wrap; overflow-wrap: anywhere; color: inherit; }

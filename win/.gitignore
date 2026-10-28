@@ -1,0 +1,11 @@
+node_modules/
+dist/
+test-results/
+LocalData/
+*.log
+src/renderer/vendor/
+.cache/
+.pnpm-store/
+.local-install-path
+tests/.*temp/
+tests/.margin-*/
